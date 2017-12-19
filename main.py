@@ -10,7 +10,6 @@ def app(environ, start_response):
     request_method = environ["REQUEST_METHOD"]
     if path in ['', '/']:
         if request_method == 'GET':
-            #return index(environ, start_response)
             return response_data(environ, start_response)
         elif request_method == 'POST':
             return response_data(environ, start_response)
