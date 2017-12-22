@@ -1,6 +1,7 @@
 # https://github.com/fchollet/keras/blob/master/examples/lstm_text_generation.py
 
 from __future__ import print_function
+from keras import optimizers
 from keras.models import Sequential, model_from_json
 from keras.layers import Dense, Activation
 from keras.layers import LSTM
@@ -13,6 +14,8 @@ import os
 import json
 import argparse
 
+learning_rate = 0.001
+iteration_num = 100
 
 sample_sentence = '「こんにちは」'
 maxlen = len(sample_sentence)
@@ -32,6 +35,12 @@ i2c_path = os.path.join('.', f_dict, 'indices_char.json')
 f_model = 'model'
 model_path = os.path.join('.', f_model, 'lstm_model.json')
 param_path = os.path.join('.', f_model, 'lstm_model_weights_' + args.opt + '.hdf5')
+
+opts = {
+        'rmsprop'   : optimizers.RMSprop(learning_rate),
+        'adam'      : optimizers.Adam(learning_rate),
+        'sgd'       : optimizers.SGD(learning_rate)
+        }
 
 def is_hiragana(text):
     a = [ch for ch in text if "あ" <= ch <= "ん"]
@@ -87,12 +96,12 @@ def train():
     model.add(Dense(len(chars)))
     model.add(Activation('softmax'))
 
-    model.compile(loss='categorical_crossentropy', optimizer=args.opt)
+    model.compile(loss='categorical_crossentropy', optimizer=opts[args.opt])
     print('Optimizer:', args.opt)
+    print('Learning Rate:', learning_rate)
 
     # train the model, output generated text after each iteration
-    # for iteration in range(1, 60):
-    for iteration in range(1, 2):
+    for iteration in range(1, iteration_num):
         print()
         print('-' * 50)
         print('Iteration', iteration)
@@ -222,6 +231,5 @@ if __name__ == '__main__':
     print('Mode:', 'Test' if args.test else 'Train')
     if args.test:
         test()
-        print(response('こんにちははは'))
     else:
         train()
