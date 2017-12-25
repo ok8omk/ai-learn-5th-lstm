@@ -1,6 +1,16 @@
 # https://github.com/fchollet/keras/blob/master/examples/lstm_text_generation.py
 
 from __future__ import print_function
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--opt',\
+        choices = ['rmsprop', 'adam', 'sgd'],\
+        default = 'rmsprop')
+parser.add_argument('--test',
+        action = 'store_true')
+args = parser.parse_args()
+
 from keras import optimizers
 from keras.models import Sequential, model_from_json
 from keras.layers import Dense, Activation
@@ -12,21 +22,12 @@ import random
 import sys
 import os
 import json
-import argparse
 
 learning_rate = 0.001
 iteration_num = 100
 
 sample_sentence = '「こんにちは」'
-maxlen = len(sample_sentence)
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--opt',\
-        choices = ['rmsprop', 'adam', 'sgd'],\
-        default = 'rmsprop')
-parser.add_argument('--test',
-        action = 'store_true')
-args = parser.parse_args()
+maxlen = len(sample_sentence) - 2
 
 f_dict = 'dict'
 c2i_path = os.path.join('.', f_dict, 'char_indices.json')
@@ -43,7 +44,7 @@ opts = {
         }
 
 def is_hiragana(text):
-    a = [ch for ch in text if "あ" <= ch <= "ん"]
+    a = [ch for ch in text if "あ" <= ch <= "ん" or ch in ["「", "」"] ]
     if len(text) == len(a):
         return True
     return False
@@ -121,7 +122,7 @@ def train():
             sys.stdout.write(generated)
 
             for i in range(400):
-                x = np.zeros((1, maxlen, len(chars)))
+                x = np.zeros((1, maxlen + 2, len(chars)))
                 for t, char in enumerate(sentence):
                     x[0, t, char_indices[char]] = 1.
 
@@ -155,7 +156,6 @@ def test():
         char_indices = json.load(f)
     with open(i2c_path, 'r') as f:
         indices_char = json.load(f)
-    print(indices_char)
 
     json_string = open(model_path).read()
     model = model_from_json(json_string)
@@ -167,19 +167,20 @@ def test():
         print(maxlen, '文字のひらがなを入力してください')
         input_sentence = input()
         
-    generated = ''
-    generated += input_sentence
+    generated = "「"
+    generated += input_sentence + "」"
+    input_sentence = "「" + input_sentence + "」"
     print('----- Generating with seed: "' + input_sentence + '"')
     sys.stdout.write(generated)
 
     for i in range(400):
-        x = np.zeros((1, maxlen, len(chars)))
+        x = np.zeros((1, maxlen + 2, len(chars)))
         for t, char in enumerate(input_sentence):
             x[0, t, char_indices[char]] = 1.
 
         preds = model.predict(x, verbose=0)[0]
-        # diversity -> 0.5
-        next_index = sample(preds, 0.5)
+        # diversity -> 0.2
+        next_index = sample(preds, 0.2)
         next_char = indices_char[str(next_index)]
 
         generated += next_char
@@ -210,11 +211,11 @@ def response(input_sentence, opt):
     param_path = os.path.join('.', f_model, 'lstm_model_weights_' + opt + '.hdf5')
     model.load_weights(param_path)
 
-    generated = ''
-    generated += input_sentence
+    generated = "「"
+    generated += input_sentence + "」"
 
     for i in range(400):
-        x = np.zeros((1, maxlen, len(chars)))
+        x = np.zeros((1, maxlen + 2, len(chars)))
         for t, char in enumerate(input_sentence):
             x[0, t, char_indices[char]] = 1.
 
