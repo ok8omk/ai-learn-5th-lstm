@@ -17,17 +17,19 @@ from keras.layers import Dense, Activation
 from keras.layers import LSTM
 from keras.optimizers import RMSprop
 from keras.utils.data_utils import get_file
+from keras.callbacks import TensorBoard
 import numpy as np
 import random
 import sys
 import os
 import json
 
-learning_rate = 0.001
-iteration_num = 100
+learning_rate   = 0.001
+iteration_num   = 2
+epoch_num       = 20
 
-sample_sentence = '「こんにちは」'
-maxlen = len(sample_sentence) - 2
+sample_sentence = 'こんにちは'
+maxlen = len(sample_sentence)
 
 f_dict = 'dict'
 c2i_path = os.path.join('.', f_dict, 'char_indices.json')
@@ -100,42 +102,44 @@ def train():
     model.compile(loss='categorical_crossentropy', optimizer=opts[args.opt])
     print('Optimizer:', args.opt)
     print('Learning Rate:', learning_rate)
+    
+    log_filepath = "./logs/" + args.opt + "/"
+    tb_cb = TensorBoard(log_dir=log_filepath, write_graph=True, write_images=True)
 
     # train the model, output generated text after each iteration
-    for iteration in range(1, iteration_num):
-        print()
-        print('-' * 50)
-        print('Iteration', iteration)
-        model.fit(X, y,
-                  batch_size=512,
-                  epochs=1)
+    print()
+    print('-' * 50)
+    model.fit(X, y,
+            batch_size=512,
+            callbacks=[tb_cb],
+            epochs=epoch_num)
 
-        start_index = random.randint(0, len(text) - maxlen - 1)
+    start_index = random.randint(0, len(text) - maxlen - 1)
 
-        for diversity in [0.2, 0.5, 1.0, 1.2]:
-            print()
-            print('----- diversity:', diversity)
+    diversity = 0.2
+    print()
+    print('----- diversity:', diversity)
 
-            generated = ''
-            generated += input_sentence
-            print('----- Generating with seed: "' + input_sentence + '"')
-            sys.stdout.write(generated)
+    generated = ''
+    generated += input_sentence
+    print('----- Generating with seed: "' + input_sentence + '"')
+    sys.stdout.write(generated)
 
-            for i in range(400):
-                x = np.zeros((1, maxlen + 2, len(chars)))
-                for t, char in enumerate(sentence):
-                    x[0, t, char_indices[char]] = 1.
+    for i in range(400):
+        x = np.zeros((1, maxlen, len(chars)))
+        for t, char in enumerate(sentence):
+            x[0, t, char_indices[char]] = 1.
 
-                preds = model.predict(x, verbose=0)[0]
-                next_index = sample(preds, diversity)
-                next_char = indices_char[next_index]
+        preds = model.predict(x, verbose=0)[0]
+        next_index = sample(preds, diversity)
+        next_char = indices_char[next_index]
 
-                generated += next_char
-                sentence = sentence[1:] + next_char
+        generated += next_char
+        sentence = sentence[1:] + next_char
 
-                sys.stdout.write(next_char)
-                sys.stdout.flush()
-            print()
+        sys.stdout.write(next_char)
+        sys.stdout.flush()
+    print()
 
     print('save the architecture of a model')
     json_string = model.to_json()
@@ -174,12 +178,11 @@ def test():
     sys.stdout.write(generated)
 
     for i in range(400):
-        x = np.zeros((1, maxlen + 2, len(chars)))
+        x = np.zeros((1, maxlen, len(chars)))
         for t, char in enumerate(input_sentence):
             x[0, t, char_indices[char]] = 1.
 
         preds = model.predict(x, verbose=0)[0]
-        # diversity -> 0.2
         next_index = sample(preds, 0.2)
         next_char = indices_char[str(next_index)]
 
@@ -215,13 +218,12 @@ def response(input_sentence, opt):
     generated += input_sentence + "」"
 
     for i in range(400):
-        x = np.zeros((1, maxlen + 2, len(chars)))
+        x = np.zeros((1, maxlen, len(chars)))
         for t, char in enumerate(input_sentence):
             x[0, t, char_indices[char]] = 1.
 
         preds = model.predict(x, verbose=0)[0]
-        # diversity -> 0.5
-        next_index = sample(preds, 0.5)
+        next_index = sample(preds, 0.2)
         next_char = indices_char[str(next_index)]
 
         generated += next_char
